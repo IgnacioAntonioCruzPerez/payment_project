@@ -1,5 +1,8 @@
-from app.db.models import Payment, Outbox
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
+from app.db.models import Payment, Outbox
+from app.schemas.payment import PaymentCreate
 
 async def create_payment(
     db: AsyncSession,
@@ -39,3 +42,8 @@ async def create_payment(
     await db.refresh(payment)
 
     return payment
+
+async def get_payment(db: AsyncSession, payment_id):
+    stmt = select(Payment).where(Payment.id == payment_id)
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
