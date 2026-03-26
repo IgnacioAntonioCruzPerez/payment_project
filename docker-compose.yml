@@ -1,7 +1,21 @@
 version: "3.9"
 
 services:
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_DB: payments
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+
   api:
     build: .
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/payments
     ports:
       - "8000:8000"
