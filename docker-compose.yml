@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:15
@@ -13,18 +11,20 @@ services:
 
   api:
     build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     depends_on:
       - db
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/payments
     ports:
       - "8000:8000"
-  
+
   rabbitmq:
     image: rabbitmq:3-management
     ports:
       - "5672:5672"
       - "15672:15672"
+
   worker:
     build: .
     command: python -m app.workers.outbox_worker
@@ -33,3 +33,12 @@ services:
       - rabbitmq
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/payments
+
+  consumer:
+    build: .
+    command: python -m app.consumers.payment_consumer
+    depends_on:
+      - rabbitmq 
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    restart: always

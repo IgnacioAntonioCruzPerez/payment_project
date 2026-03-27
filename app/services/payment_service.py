@@ -33,7 +33,7 @@ async def create_payment(
 
     event = Outbox(
         event_type="payments.new",
-        payload={"payment_id": str(payment.id)}
+        payload={"payment_id": str(payment.id)},
         status="pending"
     )
 

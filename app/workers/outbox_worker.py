@@ -3,6 +3,11 @@ from sqlalchemy import select, text
 from app.db.session import async_session
 from app.db.models import Outbox
 from app.messaging.publisher import publish_message
+import aio_pika
+import json
+
+RABBITMQ_URL = "amqp://guest:guest@rabbitmq/"
+QUEUE_NAME = "payments"
 
 async def wait_for_db():
     for i in range(30): 
@@ -18,9 +23,24 @@ async def wait_for_db():
     raise Exception("❌ DB not ready after retries")
 
 
+async def publish_message(payload: dict):
+    connection = await aio_pika.connect_robust(RABBITMQ_URL)
+    channel = await connection.channel()
+
+    await channel.default_exchange.publish(
+        aio_pika.Message(
+            body=json.dumps(payload).encode()
+        ),
+        routing_key=QUEUE_NAME,
+    )
+
+    await connection.close()
+
+
 async def process_outbox():
     try:
         async with async_session() as db:
+
             result = await db.execute(
                 select(Outbox).where(Outbox.status == "pending")
             )
@@ -34,13 +54,15 @@ async def process_outbox():
                 try:
                     print(f"📤 Publishing event: {event.id}")
 
+                    # 🔥 RabbitMQ publish
                     await publish_message(event.payload)
-
+                    
                     event.status = "sent"
                     event.attempts += 1
 
                 except Exception as e:
                     print(f"❌ Failed event {event.id}: {e}")
+                    
                     event.attempts += 1
 
             await db.commit()
