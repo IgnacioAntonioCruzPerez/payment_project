@@ -18,7 +18,9 @@ class PaymentResponse(BaseModel):
     amount: Decimal
     currency: str
     description: str
-    metadata: Optional[Dict]
+
+    metadata: Optional[Dict] = Field(None, alias="metadata_")
+
     status: str
     webhook_url: str
     created_at: datetime
@@ -26,3 +28,4 @@ class PaymentResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        populate_by_name = True  

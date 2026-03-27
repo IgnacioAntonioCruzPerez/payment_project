@@ -4,3 +4,4 @@ pydantic
 sqlalchemy>=2.0
 asyncpg
 alembic
+aio-pika

@@ -29,10 +29,12 @@ async def create_payment(
     )
 
     db.add(payment)
+    await db.flush()
 
     event = Outbox(
         event_type="payments.new",
         payload={"payment_id": str(payment.id)}
+        status="pending"
     )
 
     db.add(event)

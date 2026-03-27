@@ -19,3 +19,17 @@ services:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/payments
     ports:
       - "8000:8000"
+  
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+  worker:
+    build: .
+    command: python -m app.workers.outbox_worker
+    depends_on:
+      - db
+      - rabbitmq
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/payments
