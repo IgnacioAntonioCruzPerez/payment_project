@@ -2,12 +2,25 @@ from pydantic import BaseModel, Field
 from typing import Optional, Dict
 from decimal import Decimal
 from datetime import datetime
+from enum import Enum
 import uuid
+
+
+class Currency(str, Enum):
+    RUB = "RUB"
+    USD = "USD"
+    EUR = "EUR"
+
+
+class PaymentStatus(str, Enum):
+    pending = "pending"
+    succeeded = "succeeded"
+    failed = "failed"
 
 
 class PaymentCreate(BaseModel):
     amount: Decimal
-    currency: str = Field(..., examples=["USD"])
+    currency: Currency = Field(..., examples=["USD"])
     description: str
     metadata: Optional[Dict] = None
     webhook_url: str
@@ -16,16 +29,17 @@ class PaymentCreate(BaseModel):
 class PaymentResponse(BaseModel):
     id: uuid.UUID
     amount: Decimal
-    currency: str
+    currency: Currency
     description: str
 
-    metadata: Optional[Dict] = Field(None, alias="metadata_")
+    metadata: Optional[Dict] = Field(None, validation_alias="metadata_")
 
-    status: str
+    status: PaymentStatus
     webhook_url: str
     created_at: datetime
-    processed_at: Optional[datetime]
+    processed_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
-        populate_by_name = True  
+    model_config = {
+        "from_attributes": True,
+        "populate_by_name": True,
+    }

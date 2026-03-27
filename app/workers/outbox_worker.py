@@ -2,12 +2,12 @@ import asyncio
 from sqlalchemy import select, text
 from app.db.session import async_session
 from app.db.models import Outbox
-from app.messaging.publisher import publish_message
-import aio_pika
-import json
+from app.core.config import settings
+from faststream.rabbit import RabbitBroker, RabbitQueue
 
-RABBITMQ_URL = "amqp://guest:guest@rabbitmq/"
-QUEUE_NAME = "payments"
+MAX_ATTEMPTS = 3
+broker = RabbitBroker(settings.RABBITMQ_URL)
+payments_queue = RabbitQueue(settings.PAYMENTS_QUEUE, durable=True)
 
 async def wait_for_db():
     for i in range(30): 
@@ -24,17 +24,7 @@ async def wait_for_db():
 
 
 async def publish_message(payload: dict):
-    connection = await aio_pika.connect_robust(RABBITMQ_URL)
-    channel = await connection.channel()
-
-    await channel.default_exchange.publish(
-        aio_pika.Message(
-            body=json.dumps(payload).encode()
-        ),
-        routing_key=QUEUE_NAME,
-    )
-
-    await connection.close()
+    await broker.publish(payload, queue=payments_queue.name)
 
 
 async def process_outbox():
@@ -51,19 +41,21 @@ async def process_outbox():
                 return
 
             for event in events:
+                if event.attempts >= MAX_ATTEMPTS:
+                    event.status = "dead"
+                    continue
                 try:
                     print(f"📤 Publishing event: {event.id}")
 
-                    # 🔥 RabbitMQ publish
                     await publish_message(event.payload)
-                    
                     event.status = "sent"
                     event.attempts += 1
 
                 except Exception as e:
                     print(f"❌ Failed event {event.id}: {e}")
-                    
                     event.attempts += 1
+                    if event.attempts >= MAX_ATTEMPTS:
+                        event.status = "dead"
 
             await db.commit()
 
@@ -73,11 +65,11 @@ async def process_outbox():
 async def main():
     await wait_for_db()
 
-    print("🚀 Outbox worker started")
-
-    while True:
-        await process_outbox()
-        await asyncio.sleep(5)
+    async with broker:
+        print("🚀 Outbox worker started")
+        while True:
+            await process_outbox()
+            await asyncio.sleep(5)
 
 
 if __name__ == "__main__":

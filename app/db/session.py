@@ -2,8 +2,6 @@ import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from app.core.config import settings
 
-DATABASE_URL = "postgresql+asyncpg://postgres:postgres@db:5432/payments"
-
 engine = create_async_engine(settings.DATABASE_URL, echo=True)
 
 async_session = async_sessionmaker(
