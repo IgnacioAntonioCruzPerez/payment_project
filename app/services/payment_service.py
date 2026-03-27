@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+import uuid
 
 from app.db.models import Payment, Outbox
 from app.schemas.payment import PaymentCreate
@@ -45,7 +46,11 @@ async def create_payment(
 
     return payment
 
-async def get_payment(db: AsyncSession, payment_id):
-    stmt = select(Payment).where(Payment.id == payment_id)
+async def get_payment(db: AsyncSession, payment_id: str):
+    try:
+        payment_uuid = uuid.UUID(payment_id)
+    except (ValueError, AttributeError):
+        return None
+    stmt = select(Payment).where(Payment.id == payment_uuid)
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
